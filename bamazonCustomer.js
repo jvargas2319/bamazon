@@ -1,10 +1,10 @@
 var mysql = require("mysql");
-
+var inquirer = require('inquirer');
 var connection = mysql.createConnection({
   host: "localhost",
 
   
-  port: 3306,
+  port: 3308,
 
   user: "root",
 
@@ -15,75 +15,64 @@ var connection = mysql.createConnection({
 
 connection.connect(function(err) {
   if (err) throw err;
-  console.log("connected as id " + connection.threadId + "\n");
-  createProduct();
+  console.log("You are connected" + "\n"); 
+ productTable();
 });
 
-function createProduct() {
-  console.log("Inserting a new product...\n");
-  var query = connection.query(
-    "INSERT INTO products SET ?",
-    {
-      product_name: "Nikon D3100",
-      deparment_name: "electronics",
-      price: 350.00,
-      stock_quantity: 50
-    },
-    function(err, res) {
-      console.log(res.affectedRows + " product inserted!\n");
-      // Call updateProduct AFTER the INSERT completes
-      updateProduct();
+var productTable = function () {
+  connection.query("SELECT * FROM products", function(err,res){
+    for(var i = 0; i < res.length; i++){
+      console.log(res[i].item_id + " " + res[i].product_name + " " + res[i].department_name + " " + res[i].price + " " + res[i].stock_quantity + "\n"); 
     }
-  );
-
-  // logs the actual query being run
-  console.log(query.sql);
+    
+    userInput(res);
+    
+  })
 }
+function validateInput(num){
+  if (isNaN(num)==false){
+    return true;
+  }else {
+    return false;
+  }
+}
+var userInput = function (res) {
+inquirer.prompt([
+  {
+    type: "input",
+    name: "choice",
+    message: "What is the ID of the product you want to buy",
+    
+  }]).then(function(answer){
+var correct = false;
+console.log(res);
+    for(var i = 0; i < res.length; i++) {
+      if(res[i].item_id == answer.choice) {
+        correct = true;
+        var item=answer.choice;
+        let id=i;
+        inquirer.prompt({
+          type:"input",
+          name: "stock",
+          message: "how many would you like to buy",
+          //validate: validateInput()
+        }).then(function(stockAnswer){
+   
+          if((res[id].stock_quantity-res[item]-stockAnswer.stock)>0){
+            connection.query("UPDATE products SET stock_quantity" + res[id].stock_quantity-answer.quant)+ "WHERE product_name" + product + " ", function(err,res){
+              console.log("Product Purchased!");
+              productTable(res);
+            }
+          } else {
+            console.log("Not a valid input");
+            //promptCustomer(res);
 
-function updateProduct() {
-  console.log("Updating all Nikon quantities...\n");
-  var query = connection.query(
-    "UPDATE products SET ? WHERE ?",
-    [
-      {
-        quantity: 100
-      },
-      {
-        product_name: "Nikon D3100"
+          }
+        }).catch(function (err) {
+          console.log(err);
+        })
       }
-    ],
-    function(err, res) {
-      console.log(res.affectedRows + " products updated!\n");
-      // Call deleteProduct AFTER the UPDATE completes
-      deleteProduct();
+     
     }
-  );
-
-  // logs the actual query being run
-  console.log(query.sql);
-}
-
-function deleteProduct() {
-  console.log("Deleting all Nikon D3100...\n");
-  connection.query(
-    "DELETE FROM products WHERE ?",
-    {
-      product_name: "Nikon D3100"
-    },
-    function(err, res) {
-      console.log(res.affectedRows + " products deleted!\n");
-      // Call readProducts AFTER the DELETE completes
-      readProducts();
-    }
-  );
-}
-
-function readProducts() {
-  console.log("Selecting all products...\n");
-  connection.query("SELECT * FROM products", function(err, res) {
-    if (err) throw err;
-    // Log all results of the SELECT statement
-    console.log(res);
-    connection.end();
-  });
+  })
 }
